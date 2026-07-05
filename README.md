@@ -24,6 +24,25 @@ so it looks and opens like a real app.
 Now there's a `>_` icon on the phone. Tapping it opens the app fullscreen —
 no browser bars — so it really looks like a secret hacking tool. 🕶️
 
+## 🔊 It talks! (text-to-speech)
+
+The app speaks out loud using the phone's built-in voice (text-to-speech), in a
+slow, deep, creepy tone. Turn the volume up!
+
+- **👻 GHOST VOICE** — speaks a ~100-word spooky "I am a hacker… I am inside your
+  phone… I see everything" monologue.
+- **📢 HAUNT MODE** — keeps talking on its own, saying a new eerie line every few
+  seconds ("I never sleep… I never blink… I only wait") until you tap it again to
+  stop.
+- The hack buttons also speak their results out loud (e.g. *"ACCESS GRANTED"*).
+
+It's all spooky-but-harmless — the voice only ever says creepy "I'm watching /
+I know things" stuff. No threats, nothing mean.
+
+> Tip: the very first tap turns the sound and voice on (phones require one tap
+> before they'll play audio). Voices sound best on a real phone; some browsers
+> have a nicer voice than others.
+
 ## How to prank someone
 
 1. Type the target's name in the box (e.g. your cousin's name).
