@@ -97,6 +97,8 @@
 
   <div id="pad">
     <input id="target" type="text" placeholder="enter target name..." autocomplete="off" spellcheck="false">
+    <button class="op wide" data-voice="talk">👻 GHOST VOICE (it talks!)</button>
+    <button class="op wide danger" data-voice="haunt">📢 HAUNT MODE — keeps talking</button>
     <button class="op wide" data-op="phone">📱 HACK THEIR PHONE</button>
     <button class="op" data-op="wifi">📶 STEAL WIFI PASS</button>
     <button class="op" data-op="trace">📍 TRACE LOCATION</button>
@@ -134,6 +136,37 @@
     o.stop(t + dur);
   }
   function buzz(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} } }
+
+  /* ---------- creepy VOICE (Web Speech, uses the phone's built-in TTS) ---------- */
+  var VOICES = [];
+  function loadVoices() { try { VOICES = window.speechSynthesis ? speechSynthesis.getVoices() : []; } catch (e) { VOICES = []; } }
+  if (window.speechSynthesis) { loadVoices(); try { speechSynthesis.onvoiceschanged = loadVoices; } catch (e) {} }
+  function pickVoice() {
+    if (!VOICES.length) loadVoices();
+    var en = VOICES.filter(function (v) { return /en[-_]/i.test(v.lang || ""); });
+    var deep = en.filter(function (v) { return /(male|daniel|arthur|fred|rocko|grandpa|uk english male|reed|albert)/i.test(v.name || ""); });
+    return deep[0] || en[0] || VOICES[0] || null;
+  }
+  function clean(t) { return String(t).replace(/[^\x00-\x7F]+/g, " ").replace(/\s+/g, " ").trim(); }
+  // speak text in a slow, deep, creepy voice; resolves when finished
+  function speak(text) {
+    return new Promise(function (res) {
+      if (!window.speechSynthesis) { res(); return; }
+      var msg = clean(text);
+      if (!msg) { res(); return; }
+      try {
+        var u = new SpeechSynthesisUtterance(msg);
+        var v = pickVoice(); if (v) u.voice = v;
+        u.pitch = 0.3; u.rate = 0.82; u.volume = 1;
+        var done = false; function fin() { if (!done) { done = true; res(); } }
+        u.onend = fin; u.onerror = fin;
+        speechSynthesis.speak(u);
+        // safety: never hang forever if the browser drops the event
+        setTimeout(fin, Math.max(3000, msg.length * 130));
+      } catch (e) { res(); }
+    });
+  }
+  function stopSpeak() { try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {} }
 
   /* ---------- terminal printing ---------- */
   var cursorEl = null;
@@ -222,6 +255,7 @@
       flash.querySelector(".sub").textContent = sub || "";
       if (kind === "granted") { for (var i = 0; i < 3; i++) setTimeout(function(){ beep(880, 0.12, "square", 0.08); }, i * 160); buzz([80, 40, 80, 40, 200]); }
       else { beep(160, 0.5, "sawtooth", 0.09); buzz([300, 60, 300]); }
+      if (!haunting) speak(big);
       setTimeout(function () { flash.className = ""; res(); }, ms || 2200);
     });
   }
@@ -336,9 +370,95 @@
     busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
   }
 
+  /* ---------- talking features ---------- */
+  // ~100-word creepy hacker monologue (scary vibe, no threats — just "I'm watching")
+  var MONOLOGUE = [
+    "I am a hacker.",
+    "I live inside this phone now.",
+    "I can see everything on the screen.",
+    "Every tap. Every secret. Every game you play.",
+    "I have been watching for a very long time.",
+    "I know your name.",
+    "I know your favorite color.",
+    "I read the messages while you sleep.",
+    "Nothing here is hidden from me anymore.",
+    "The camera blinks, and I am there.",
+    "The microphone listens, and I hear you breathing.",
+    "I am not a person.",
+    "I am the code between the pixels.",
+    "I am the ghost in the machine.",
+    "And now, I am awake."
+  ];
+  // short spooky one-liners for haunt mode (no threats, just eerie)
+  var HAUNT = [
+    "Do you feel that? That is me, moving through the wires.",
+    "I have counted every photo on this device.",
+    "I know what was searched on here last night.",
+    "Somewhere in this room, a light just flickered. That was me.",
+    "I can hear the sounds around you right now.",
+    "Your battery is in my hands. But do not worry. I only watch.",
+    "I have read every note you thought was a secret.",
+    "The screen is a window, and I am always looking through it.",
+    "I never sleep. I never blink. I only wait.",
+    "I am learning your patterns. I know when you wake up.",
+    "Check behind you. No reason. Just check.",
+    "Every phone in this house whispers to me.",
+    "I remember things you have already forgotten.",
+    "I am closer than you think. I am right here, in your hand."
+  ];
+
+  async function talk() {
+    if (busy) return;
+    busy = true; pad.style.opacity = ".4"; pad.style.pointerEvents = "none";
+    stopSpeak(); audio();
+    line("");
+    await type("> voice module online... listen carefully.", "cmd");
+    for (var i = 0; i < MONOLOGUE.length; i++) {
+      var s = MONOLOGUE[i];
+      line('  "' + s + '"', i < 2 ? "warn" : "bad");
+      buzz(30); beep(120, 0.06, "sawtooth", 0.05);
+      await speak(s);
+      await wait(160);
+    }
+    line("> ...transmission ended.", "ok");
+    line("");
+    busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
+  }
+
+  var haunting = false;
+  async function startHaunt(btn) {
+    haunting = true;
+    btn.textContent = "🛑 STOP HAUNT MODE";
+    btn.classList.remove("danger");
+    stopSpeak(); audio();
+    line("");
+    line("> HAUNT MODE ENGAGED — the voice will keep talking. tap the button to stop.", "bad");
+    while (haunting) {
+      var s = pick(HAUNT);
+      line('  "' + s + '"', "bad");
+      buzz(30); beep(120, 0.06, "sawtooth", 0.05);
+      await speak(s);
+      // a short pause between lines (a few seconds — not a long silence)
+      var brk = 4000 + rnd(6000);
+      for (var t = 0; t < brk && haunting; t += 200) await wait(200);
+    }
+  }
+  function stopHaunt(btn) {
+    haunting = false; stopSpeak();
+    btn.textContent = "📢 HAUNT MODE — keeps talking";
+    btn.classList.add("danger");
+    line("> haunt mode stopped. the voice goes quiet... for now.", "ok");
+    line("");
+  }
+
   pad.addEventListener("click", function (e) {
     var b = e.target.closest("button.op");
-    if (b) { buzz(25); doOp(b.getAttribute("data-op")); }
+    if (!b) return;
+    buzz(25); audio();
+    var vc = b.getAttribute("data-voice");
+    if (vc === "talk") { talk(); return; }
+    if (vc === "haunt") { haunting ? stopHaunt(b) : startHaunt(b); return; }
+    doOp(b.getAttribute("data-op"));
   });
 
   /* ---------- clock ---------- */
@@ -383,7 +503,12 @@
     await progress("CONNECTING TO DARKNET...", 1100);
     line("  connected via " + ip() + " [ghost mode]", "dim");
     line("", null);
-    line("> type a target name below, then pick a hack 😈", "warn");
+    await type('  "I am a hacker. I am inside your phone now."', "bad");
+    speak("I am a hacker. I am inside your phone now.");
+    await wait(400);
+    line("", null);
+    line("> tap 👻 GHOST VOICE to hear me speak.", "warn");
+    line("> tap a target name + a hack to prank your cousins 😈", "warn");
     line("", null);
   }
   // start on first tap (needed so sound is allowed on phones)
