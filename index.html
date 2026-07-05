@@ -58,6 +58,15 @@
   button.op.danger { border-color: var(--r); color: var(--r); text-shadow: 0 0 6px var(--r); }
   button.op.live { background: rgba(60,0,0,.7); box-shadow: 0 0 16px rgba(255,34,34,.5) inset; animation: pulse 1s infinite; }
   @keyframes pulse { 50% { box-shadow: 0 0 24px rgba(255,34,34,.85) inset; } }
+  #voicesel {
+    width: 100%; background: #000; border: 1px solid var(--g); color: var(--g);
+    font-family: inherit; font-size: 13px; padding: 12px; border-radius: 6px;
+    text-shadow: 0 0 5px var(--g); -webkit-appearance: none; appearance: none;
+  }
+  #pitchrow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  button.op.sm { padding: 11px 4px; font-size: 13px; }
+  button.op.sm.active { background: rgba(0,255,65,.32); box-shadow: 0 0 14px rgba(0,255,65,.55) inset; }
+  #voicehint { font-size: 11px; color: var(--gd); text-align: center; margin: -2px 0 2px; }
   .barwrap { margin: 4px 0; }
   .bar { height: 12px; border: 1px solid var(--gd); background: #001a06; overflow: hidden; }
   .bar > i { display: block; height: 100%; width: 0; background: var(--g); box-shadow: 0 0 10px var(--g); }
@@ -79,6 +88,13 @@
   <div id="term"></div>
 
   <div id="pad">
+    <select id="voicesel"><option>loading voices…</option></select>
+    <div id="pitchrow">
+      <button class="op sm active" data-pitch="0.25">🔊 DEEP</button>
+      <button class="op sm" data-pitch="0.7">😐 NORMAL</button>
+      <button class="op sm" data-pitch="1.5">🐭 HIGH</button>
+    </div>
+    <div id="voicehint">pick a voice + pitch — it plays a sample 🔊</div>
     <button class="op" data-voice="talk">🎙️ HACKER VOICE — talk to them</button>
     <button class="op danger" data-voice="nonstop">🔴 NON-STOP MODE — keeps talking</button>
   </div>
@@ -113,7 +129,9 @@
   /* ---------- creepy VOICE (Web Speech / phone's built-in text-to-speech) ---------- */
   var synth = window.speechSynthesis || null;
   var VOICES = [];
-  function loadVoices() { try { VOICES = synth ? synth.getVoices() : []; } catch (e) { VOICES = []; } }
+  var chosenVoice = null;   // the voice the user picked (null = auto-pick a deep one)
+  var chosenPitch = 0.25;   // DEEP by default
+  function loadVoices() { try { VOICES = synth ? synth.getVoices() : []; } catch (e) { VOICES = []; } populateVoiceSelect(); }
   if (synth) {
     loadVoices();
     try { synth.onvoiceschanged = loadVoices; } catch (e) {}
@@ -127,6 +145,28 @@
     return deep[0] || en[0] || VOICES[0] || null;
   }
   function clean(t) { return String(t).replace(/[^\x00-\x7F]+/g, " ").replace(/\s+/g, " ").trim(); }
+
+  // fill the dropdown with the voices this phone actually has (English ones first)
+  function populateVoiceSelect() {
+    var sel = document.getElementById("voicesel");
+    if (!sel) return;
+    if (!VOICES.length) { sel.innerHTML = "<option>no voices found on this device</option>"; return; }
+    var list = VOICES.slice().sort(function (a, b) {
+      var ae = /en/i.test(a.lang || "") ? 0 : 1, be = /en/i.test(b.lang || "") ? 0 : 1;
+      if (ae !== be) return ae - be;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+    if (!chosenVoice) chosenVoice = pickVoice();
+    var curName = chosenVoice ? chosenVoice.name : "";
+    sel.innerHTML = "";
+    list.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v.name; o.textContent = v.name + " (" + v.lang + ")";
+      if (v.name === curName) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+  function sample() { stopSpeak(); say("I am a hacker. I am inside your phone."); }
 
   // Unlock speech: MUST be called inside a real tap. Speaks a tiny silent utterance
   // so mobile browsers (esp. iPhone) allow the real lines that follow.
@@ -146,8 +186,8 @@
       var done = false; function fin() { if (!done) { done = true; res(); } }
       try {
         var u = new SpeechSynthesisUtterance(msg);
-        var v = pickVoice(); if (v) u.voice = v;
-        u.pitch = 0.3; u.rate = 0.82; u.volume = 1;
+        var v = chosenVoice || pickVoice(); if (v) u.voice = v;
+        u.pitch = chosenPitch; u.rate = 0.82; u.volume = 1;
         u.onend = fin; u.onerror = fin;
         synth.speak(u);
         // safety: never hang forever if the browser drops the 'end' event
@@ -307,9 +347,26 @@
     if (!b) return;
     // these run inside the real tap so phones allow the voice to play
     audio(); unlockSpeech(); buzz(25);
+    var pt = b.getAttribute("data-pitch");
+    if (pt) {
+      chosenPitch = parseFloat(pt);
+      var pbtns = pad.querySelectorAll("button[data-pitch]");
+      for (var i = 0; i < pbtns.length; i++) pbtns[i].classList.remove("active");
+      b.classList.add("active");
+      sample();
+      return;
+    }
     var vc = b.getAttribute("data-voice");
     if (vc === "talk") { talk(); }
     else if (vc === "nonstop") { live ? stopLive(b) : startLive(b); }
+  });
+
+  // change the voice from the dropdown (plays a sample so you can hear it)
+  var voicesel = document.getElementById("voicesel");
+  if (voicesel) voicesel.addEventListener("change", function () {
+    audio(); unlockSpeech();
+    var v = VOICES.filter(function (x) { return x.name === voicesel.value; })[0];
+    if (v) { chosenVoice = v; sample(); }
   });
 
   /* ---------- clock ---------- */

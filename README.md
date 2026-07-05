@@ -25,6 +25,16 @@ Two big buttons:
 Everything it says is spooky-but-harmless — only *"I'm a hacker / I'm watching /
 I know things"* stuff. **No threats, nothing mean.**
 
+### 🎚️ Change the voice
+At the top of the buttons you can pick how the hacker sounds:
+
+- **Voice dropdown** — lists every voice your phone has. Pick one and it plays a
+  sample right away. (Different phones have different voices — try a few!)
+- **🔊 DEEP / 😐 NORMAL / 🐭 HIGH** — change the pitch from a deep scary voice to a
+  normal one to a silly high one. Tapping one plays a sample too.
+
+Your choice is used for both HACKER VOICE and NON-STOP MODE.
+
 ## ⚠️ IMPORTANT — how to make the voice actually talk
 
 Phones only allow sound after you tap, so:
