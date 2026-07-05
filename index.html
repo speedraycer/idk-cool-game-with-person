@@ -44,37 +44,20 @@
   .cursor { display: inline-block; width: 9px; height: 15px; background: var(--g);
     vertical-align: -2px; box-shadow: 0 0 8px var(--g); animation: blink .8s step-end infinite; }
   #pad {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 14px 16px;
+    display: grid; grid-template-columns: 1fr; gap: 10px; padding: 12px 14px 18px;
     border-top: 1px solid var(--gd); background: rgba(0,10,0,.55);
   }
   button.op {
     appearance: none; background: rgba(0,40,10,.6); color: var(--g);
-    border: 1px solid var(--g); border-radius: 6px; padding: 13px 8px;
-    font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: .5px;
+    border: 1px solid var(--g); border-radius: 6px; padding: 16px 8px;
+    font-family: inherit; font-size: 15px; font-weight: bold; letter-spacing: .5px;
     text-shadow: 0 0 6px var(--g); box-shadow: 0 0 10px rgba(0,255,65,.15) inset; cursor: pointer;
     transition: transform .06s, background .1s;
   }
-  button.op:active { transform: scale(.95); background: rgba(0,255,65,.25); }
-  button.op.wide { grid-column: 1 / -1; }
+  button.op:active { transform: scale(.97); background: rgba(0,255,65,.25); }
   button.op.danger { border-color: var(--r); color: var(--r); text-shadow: 0 0 6px var(--r); }
-  #target {
-    grid-column: 1 / -1; background: #000; border: 1px solid var(--gd); color: var(--g);
-    font-family: inherit; font-size: 14px; padding: 11px; border-radius: 6px; text-align: center;
-    text-shadow: 0 0 5px var(--g);
-  }
-  #target::placeholder { color: var(--gd); }
-  /* full screen ACCESS GRANTED / DENIED flash */
-  #flash {
-    position: fixed; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center;
-    flex-direction: column; text-align: center; padding: 20px; font-weight: bold;
-  }
-  #flash.show { display: flex; }
-  #flash .big { font-size: 40px; letter-spacing: 3px; }
-  #flash .sub { font-size: 15px; margin-top: 14px; opacity: .85; }
-  #flash.granted { background: rgba(0,20,0,.94); color: var(--g); text-shadow: 0 0 18px var(--g); animation: pop .3s; }
-  #flash.denied  { background: rgba(30,0,0,.94); color: var(--r); text-shadow: 0 0 18px var(--r); animation: shake .35s; }
-  @keyframes pop { from { transform: scale(.6); opacity: 0; } }
-  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-14px)} 40%{transform:translateX(14px)} 60%{transform:translateX(-9px)} 80%{transform:translateX(9px)} }
+  button.op.live { background: rgba(60,0,0,.7); box-shadow: 0 0 16px rgba(255,34,34,.5) inset; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 24px rgba(255,34,34,.85) inset; } }
   .barwrap { margin: 4px 0; }
   .bar { height: 12px; border: 1px solid var(--gd); background: #001a06; overflow: hidden; }
   .bar > i { display: block; height: 100%; width: 0; background: var(--g); box-shadow: 0 0 10px var(--g); }
@@ -96,28 +79,16 @@
   <div id="term"></div>
 
   <div id="pad">
-    <input id="target" type="text" placeholder="enter target name..." autocomplete="off" spellcheck="false">
-    <button class="op wide" data-voice="talk">👻 GHOST VOICE (it talks!)</button>
-    <button class="op wide danger" data-voice="haunt">📢 HAUNT MODE — keeps talking</button>
-    <button class="op wide" data-op="phone">📱 HACK THEIR PHONE</button>
-    <button class="op" data-op="wifi">📶 STEAL WIFI PASS</button>
-    <button class="op" data-op="trace">📍 TRACE LOCATION</button>
-    <button class="op" data-op="camera">📷 HACK CAMERA</button>
-    <button class="op" data-op="bank">💰 DRAIN COINS</button>
-    <button class="op wide danger" data-op="virus">☣️ UNLEASH VIRUS</button>
-    <button class="op wide danger" data-op="nuke">🚀 LAUNCH SATELLITE STRIKE</button>
+    <button class="op" data-voice="talk">🎙️ HACKER VOICE — talk to them</button>
+    <button class="op danger" data-voice="nonstop">🔴 NON-STOP MODE — keeps talking</button>
   </div>
 </div>
-
-<div id="flash"><div class="big"></div><div class="sub"></div></div>
 
 <script>
 (function () {
   "use strict";
   var term = document.getElementById("term");
   var pad = document.getElementById("pad");
-  var flash = document.getElementById("flash");
-  var targetInput = document.getElementById("target");
   var busy = false;
 
   /* ---------- sound (Web Audio, no files needed) ---------- */
@@ -136,37 +107,55 @@
     o.stop(t + dur);
   }
   function buzz(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} } }
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function pick(a) { return a[rnd(a.length)]; }
 
-  /* ---------- creepy VOICE (Web Speech, uses the phone's built-in TTS) ---------- */
+  /* ---------- creepy VOICE (Web Speech / phone's built-in text-to-speech) ---------- */
+  var synth = window.speechSynthesis || null;
   var VOICES = [];
-  function loadVoices() { try { VOICES = window.speechSynthesis ? speechSynthesis.getVoices() : []; } catch (e) { VOICES = []; } }
-  if (window.speechSynthesis) { loadVoices(); try { speechSynthesis.onvoiceschanged = loadVoices; } catch (e) {} }
+  function loadVoices() { try { VOICES = synth ? synth.getVoices() : []; } catch (e) { VOICES = []; } }
+  if (synth) {
+    loadVoices();
+    try { synth.onvoiceschanged = loadVoices; } catch (e) {}
+    // Chrome desktop stalls long speech queues; nudge it to keep going
+    setInterval(function () { try { if (synth.speaking) synth.resume(); } catch (e) {} }, 7000);
+  }
   function pickVoice() {
     if (!VOICES.length) loadVoices();
     var en = VOICES.filter(function (v) { return /en[-_]/i.test(v.lang || ""); });
-    var deep = en.filter(function (v) { return /(male|daniel|arthur|fred|rocko|grandpa|uk english male|reed|albert)/i.test(v.name || ""); });
+    var deep = en.filter(function (v) { return /(male|daniel|arthur|fred|rocko|grandpa|uk english male|reed|albert|aaron)/i.test(v.name || ""); });
     return deep[0] || en[0] || VOICES[0] || null;
   }
   function clean(t) { return String(t).replace(/[^\x00-\x7F]+/g, " ").replace(/\s+/g, " ").trim(); }
-  // speak text in a slow, deep, creepy voice; resolves when finished
-  function speak(text) {
+
+  // Unlock speech: MUST be called inside a real tap. Speaks a tiny silent utterance
+  // so mobile browsers (esp. iPhone) allow the real lines that follow.
+  var unlocked = false;
+  function unlockSpeech() {
+    if (unlocked || !synth) return;
+    try { var u = new SpeechSynthesisUtterance(" "); u.volume = 0; synth.speak(u); } catch (e) {}
+    unlocked = true;
+  }
+
+  // speak one line in a slow, deep, creepy voice; resolves when it finishes
+  function say(text) {
     return new Promise(function (res) {
-      if (!window.speechSynthesis) { res(); return; }
+      if (!synth) { res(); return; }
       var msg = clean(text);
       if (!msg) { res(); return; }
+      var done = false; function fin() { if (!done) { done = true; res(); } }
       try {
         var u = new SpeechSynthesisUtterance(msg);
         var v = pickVoice(); if (v) u.voice = v;
         u.pitch = 0.3; u.rate = 0.82; u.volume = 1;
-        var done = false; function fin() { if (!done) { done = true; res(); } }
         u.onend = fin; u.onerror = fin;
-        speechSynthesis.speak(u);
-        // safety: never hang forever if the browser drops the event
-        setTimeout(fin, Math.max(3000, msg.length * 130));
-      } catch (e) { res(); }
+        synth.speak(u);
+        // safety: never hang forever if the browser drops the 'end' event
+        setTimeout(fin, Math.max(4000, msg.length * 140));
+      } catch (e) { fin(); }
     });
   }
-  function stopSpeak() { try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {} }
+  function stopSpeak() { try { if (synth) synth.cancel(); } catch (e) {} }
 
   /* ---------- terminal printing ---------- */
   var cursorEl = null;
@@ -184,7 +173,6 @@
     ensureCursor(); scroll();
     return d;
   }
-  // type text out char by char
   function type(text, cls) {
     return new Promise(function (res) {
       if (cursorEl && cursorEl.parentNode) cursorEl.parentNode.removeChild(cursorEl);
@@ -203,7 +191,6 @@
   }
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
-  // animated progress bar
   function progress(label, ms) {
     return new Promise(function (res) {
       line(label, "dim");
@@ -219,246 +206,110 @@
         if (Math.random() < 0.3) beep(400 + Math.random() * 900, 0.02, "sawtooth", 0.025);
         scroll();
         if (p < 1) requestAnimationFrame(step);
-        else { line("[ " + label.replace(/\.\.\.$/, "") + " ] " + "COMPLETE ✓", "ok"); res(); }
+        else { line("[ " + label.replace(/\.\.\.$/, "") + " ] COMPLETE", "ok"); res(); }
       })();
     });
   }
-
-  function hex(n) { var s = ""; for (var i = 0; i < n; i++) s += "0123456789ABCDEF".charAt(Math.floor(Math.random() * 16)); return s; }
   function ip() { return (10 + rnd(240)) + "." + rnd(255) + "." + rnd(255) + "." + rnd(255); }
-  function rnd(n) { return Math.floor(Math.random() * n); }
-  function pick(a) { return a[rnd(a.length)]; }
 
-  // dump fake data-mining lines
-  function dataDump(count, delay) {
-    return new Promise(function (res) {
-      var i = 0;
-      (function step() {
-        if (i++ < count) {
-          var kind = rnd(4);
-          var s = kind === 0 ? "0x" + hex(8) + "  " + hex(2) + " " + hex(2) + " " + hex(2) + " " + hex(2) + "   ...decrypting"
-                : kind === 1 ? "packet " + rnd(99999) + " -> " + ip() + " [INTERCEPTED]"
-                : kind === 2 ? "reading sector " + rnd(9999) + " ......... OK"
-                : "bypass node " + hex(4) + " @ " + ip();
-          line(s, "dim");
-          beep(600 + Math.random() * 800, 0.015, "square", 0.02);
-          setTimeout(step, delay);
-        } else res();
-      })();
-    });
-  }
+  /* ================= TALKING FEATURES ================= */
 
-  function showFlash(kind, big, sub, ms) {
-    return new Promise(function (res) {
-      flash.className = "show " + kind;
-      flash.querySelector(".big").textContent = big;
-      flash.querySelector(".sub").textContent = sub || "";
-      if (kind === "granted") { for (var i = 0; i < 3; i++) setTimeout(function(){ beep(880, 0.12, "square", 0.08); }, i * 160); buzz([80, 40, 80, 40, 200]); }
-      else { beep(160, 0.5, "sawtooth", 0.09); buzz([300, 60, 300]); }
-      if (!haunting) speak(big);
-      setTimeout(function () { flash.className = ""; res(); }, ms || 2200);
-    });
-  }
-
-  /* ---------- prank sequences ---------- */
-  function tgt() {
-    var v = targetInput.value.trim();
-    return v ? v : "UNKNOWN_TARGET";
-  }
-
-  var OPS = {
-    phone: function (t) { return [
-      ["type", "> initiating remote access on " + t + "'s device...", "cmd"],
-      ["prog", "ESTABLISHING SSH TUNNEL...", 1400],
-      ["prog", "BYPASSING LOCK SCREEN...", 1800],
-      ["dump", 8, 90],
-      ["prog", "DECRYPTING MESSAGES...", 1600],
-      ["line", "  found 4,182 messages", "ok"],
-      ["line", "  found 917 photos", "ok"],
-      ["line", "  found search history: 'how to beat my cousin'", "warn"],
-      ["flash", "granted", "ACCESS GRANTED", t + "'s phone is now MINE"]
-    ]; },
-    wifi: function (t) { return [
-      ["type", "> scanning nearby networks...", "cmd"],
-      ["line", "  [1] NETGEAR_5G    signal ▓▓▓▓░", "dim"],
-      ["line", "  [2] " + t + "_HOUSE   signal ▓▓▓▓▓", "dim"],
-      ["line", "  [3] FBI_SURVEILLANCE_VAN  signal ▓▓░░░", "warn"],
-      ["prog", "BRUTE-FORCING PASSWORD...", 2600],
-      ["dump", 6, 80],
-      ["line", "  PASSWORD CRACKED: " + pick(["hunter2","letmein123","password!","p1zz4t1me","g0ldf1sh"]), "ok"],
-      ["flash", "granted", "WIFI STOLEN", "free internet unlocked 😎"]
-    ]; },
-    trace: function (t) { return [
-      ["type", "> triangulating " + t + "'s location...", "cmd"],
-      ["prog", "PINGING SATELLITES...", 1500],
-      ["dump", 5, 90],
-      ["prog", "LOCKING GPS SIGNAL...", 1700],
-      ["line", "  LAT: " + (rnd(80)+ "." + rnd(999999)), "ok"],
-      ["line", "  LON: -" + (rnd(120)+ "." + rnd(999999)), "ok"],
-      ["line", "  LOCATION: behind you 👀", "warn"],
-      ["flash", "granted", "TARGET LOCATED", t + " has been found"]
-    ]; },
-    camera: function (t) { return [
-      ["type", "> hijacking " + t + "'s front camera...", "cmd"],
-      ["prog", "ACCESSING CAMERA FEED...", 2000],
-      ["dump", 6, 80],
-      ["line", "  streaming live video...", "ok"],
-      ["line", "  subject detected: 1 face", "ok"],
-      ["line", "  facial recognition: 'definitely a goofball'", "warn"],
-      ["flash", "granted", "CAMERA HACKED", "smile, you're on camera 📸"]
-    ]; },
-    bank: function (t) { return [
-      ["type", "> locating " + t + "'s secret coin stash...", "cmd"],
-      ["prog", "HACKING ROBLOX SERVERS...", 2200],
-      ["dump", 5, 90],
-      ["prog", "TRANSFERRING FUNDS...", 1800],
-      ["line", "  transferred " + (rnd(90000)+1000) + " Robux 💸", "ok"],
-      ["line", "  transferred " + (rnd(9000)+100) + " V-Bucks 💸", "ok"],
-      ["flash", "granted", "VAULT DRAINED", "all coins belong to me now"]
-    ]; },
-    virus: function (t) { return [
-      ["type", "> compiling super virus...", "bad"],
-      ["prog", "WRITING MALICIOUS CODE...", 1600],
-      ["dump", 7, 70],
-      ["prog", "INFECTING " + t.toUpperCase() + "'S DEVICE...", 2400],
-      ["line", "  ⚠ 47 files corrupted", "bad"],
-      ["line", "  ⚠ keyboard now types only 'BANANA'", "bad"],
-      ["flash", "granted", "VIRUS DEPLOYED", t + " has been pranked ☣️"]
-    ]; },
-    nuke: function (t) { return [
-      ["type", "> ACCESSING ORBITAL WEAPONS PLATFORM...", "bad"],
-      ["prog", "AUTHENTICATING COMMANDER...", 1500],
-      ["prog", "AIMING SATELLITE AT " + t.toUpperCase() + "...", 2600],
-      ["dump", 6, 80],
-      ["line", "  ⚠⚠ WARNING: this is a very silly button ⚠⚠", "warn"],
-      ["count", 5],
-      ["flash", "denied", "STRIKE ABORTED", "just kidding 😂 it's only a prank!"]
-    ]; }
-  };
-
-  function countdown(n) {
-    return new Promise(function (res) {
-      (function step() {
-        if (n > 0) { line("  T-MINUS " + n + "...", "bad"); beep(220, 0.15, "sawtooth", 0.08); buzz(60); n--; setTimeout(step, 700); }
-        else res();
-      })();
-    });
-  }
-
-  async function runOps(steps, t) {
-    for (var i = 0; i < steps.length; i++) {
-      var s = steps[i];
-      if (s[0] === "type") await type(s[1], s[2]);
-      else if (s[0] === "line") { line(s[1], s[2]); await wait(300); }
-      else if (s[0] === "prog") await progress(s[1], s[2]);
-      else if (s[0] === "dump") await dataDump(s[1], s[2]);
-      else if (s[0] === "count") await countdown(s[1]);
-      else if (s[0] === "flash") await showFlash(s[1], s[2], s[3]);
-    }
-  }
-
-  async function doOp(op) {
-    if (busy) return;
-    busy = true; pad.style.opacity = ".4"; pad.style.pointerEvents = "none";
-    audio();
-    var t = tgt();
-    line("");
-    var steps = OPS[op](t);
-    await runOps(steps, t);
-    line("> operation complete. select next target.", "ok");
-    line("");
-    busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
-  }
-
-  /* ---------- talking features ---------- */
-  // ~100-word creepy hacker monologue (scary vibe, no threats — just "I'm watching")
+  // ~100-word "I am a hacker" monologue (scary vibe, no threats — just "I'm watching")
   var MONOLOGUE = [
     "I am a hacker.",
-    "I live inside this phone now.",
+    "I am inside this phone right now.",
     "I can see everything on the screen.",
-    "Every tap. Every secret. Every game you play.",
+    "Every tap. Every message. Every game you play.",
     "I have been watching for a very long time.",
     "I know your name.",
     "I know your favorite color.",
-    "I read the messages while you sleep.",
-    "Nothing here is hidden from me anymore.",
-    "The camera blinks, and I am there.",
-    "The microphone listens, and I hear you breathing.",
-    "I am not a person.",
-    "I am the code between the pixels.",
-    "I am the ghost in the machine.",
-    "And now, I am awake."
+    "I read your messages while you sleep.",
+    "Nothing on this device is hidden from me.",
+    "I turned on the camera. I am looking at you.",
+    "I turned on the microphone. I can hear you.",
+    "I am not a kid, and I am not a teacher.",
+    "I am a hacker, and this phone belongs to me now.",
+    "I control the screen. I control the sound.",
+    "And there is nothing you can do about it."
   ];
-  // short spooky one-liners for haunt mode (no threats, just eerie)
-  var HAUNT = [
-    "Do you feel that? That is me, moving through the wires.",
-    "I have counted every photo on this device.",
+
+  // short creepy one-liners for NON-STOP MODE (spooky, no threats)
+  var LINES = [
+    "I am still here. I never left.",
+    "I just read every message on this phone.",
+    "I can see you through the camera right now.",
     "I know what was searched on here last night.",
-    "Somewhere in this room, a light just flickered. That was me.",
-    "I can hear the sounds around you right now.",
-    "Your battery is in my hands. But do not worry. I only watch.",
-    "I have read every note you thought was a secret.",
-    "The screen is a window, and I am always looking through it.",
-    "I never sleep. I never blink. I only wait.",
-    "I am learning your patterns. I know when you wake up.",
-    "Check behind you. No reason. Just check.",
-    "Every phone in this house whispers to me.",
-    "I remember things you have already forgotten.",
-    "I am closer than you think. I am right here, in your hand."
+    "I am watching every button you press.",
+    "Your photos? I already have copies of all of them.",
+    "I turned your brightness down. Did you notice?",
+    "I have been inside this phone for three days.",
+    "I can hear everything the microphone hears.",
+    "I know your passwords. All of them.",
+    "Say hi to the camera. I can see you.",
+    "I never sleep. I am always watching this screen.",
+    "I am closer than you think. I am right here, in your hand.",
+    "Every phone in this house talks to me."
   ];
 
-  async function talk() {
+  // HACKER VOICE: speak the whole monologue. First line fires immediately on the
+  // tap (so mobile allows it); the rest chain on each line finishing.
+  function talk() {
     if (busy) return;
-    busy = true; pad.style.opacity = ".4"; pad.style.pointerEvents = "none";
-    stopSpeak(); audio();
+    busy = true; pad.style.opacity = ".5"; pad.style.pointerEvents = "none";
+    stopSpeak();
     line("");
-    await type("> voice module online... listen carefully.", "cmd");
-    for (var i = 0; i < MONOLOGUE.length; i++) {
-      var s = MONOLOGUE[i];
-      line('  "' + s + '"', i < 2 ? "warn" : "bad");
-      buzz(30); beep(120, 0.06, "sawtooth", 0.05);
-      await speak(s);
-      await wait(160);
-    }
-    line("> ...transmission ended.", "ok");
-    line("");
-    busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
-  }
-
-  var haunting = false;
-  async function startHaunt(btn) {
-    haunting = true;
-    btn.textContent = "🛑 STOP HAUNT MODE";
-    btn.classList.remove("danger");
-    stopSpeak(); audio();
-    line("");
-    line("> HAUNT MODE ENGAGED — the voice will keep talking. tap the button to stop.", "bad");
-    while (haunting) {
-      var s = pick(HAUNT);
+    line("> voice online. listen carefully...", "cmd");
+    var i = 0;
+    (function next() {
+      if (i >= MONOLOGUE.length) {
+        line("> ...transmission ended.", "ok"); line("");
+        busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
+        return;
+      }
+      var s = MONOLOGUE[i++];
       line('  "' + s + '"', "bad");
       buzz(30); beep(120, 0.06, "sawtooth", 0.05);
-      await speak(s);
-      // a short pause between lines (a few seconds — not a long silence)
-      var brk = 4000 + rnd(6000);
-      for (var t = 0; t < brk && haunting; t += 200) await wait(200);
-    }
+      say(s).then(function () { setTimeout(next, 160); });
+    })();
   }
-  function stopHaunt(btn) {
-    haunting = false; stopSpeak();
-    btn.textContent = "📢 HAUNT MODE — keeps talking";
-    btn.classList.add("danger");
-    line("> haunt mode stopped. the voice goes quiet... for now.", "ok");
+
+  // NON-STOP MODE: keeps speaking random lines with a short gap, until toggled off.
+  var live = false, liveTimer = null;
+  function startLive(btn) {
+    live = true;
+    btn.textContent = "🛑 STOP TALKING";
+    btn.classList.add("live");
+    stopSpeak();
     line("");
+    line("> NON-STOP MODE ON. the hacker will keep talking. tap to stop.", "bad");
+    (function loop() {
+      if (!live) return;
+      var s = pick(LINES);
+      line('  "' + s + '"', "bad");
+      buzz(30); beep(120, 0.06, "sawtooth", 0.05);
+      say(s).then(function () {
+        if (!live) return;
+        liveTimer = setTimeout(loop, 2500 + rnd(4000)); // short gap, then next line
+      });
+    })();
+  }
+  function stopLive(btn) {
+    live = false;
+    if (liveTimer) clearTimeout(liveTimer);
+    stopSpeak();
+    btn.textContent = "🔴 NON-STOP MODE — keeps talking";
+    btn.classList.remove("live");
+    line("> the hacker goes quiet... for now.", "ok"); line("");
   }
 
   pad.addEventListener("click", function (e) {
     var b = e.target.closest("button.op");
     if (!b) return;
-    buzz(25); audio();
+    // these run inside the real tap so phones allow the voice to play
+    audio(); unlockSpeech(); buzz(25);
     var vc = b.getAttribute("data-voice");
-    if (vc === "talk") { talk(); return; }
-    if (vc === "haunt") { haunting ? stopHaunt(b) : startHaunt(b); return; }
-    doOp(b.getAttribute("data-op"));
+    if (vc === "talk") { talk(); }
+    else if (vc === "nonstop") { live ? stopLive(b) : startLive(b); }
   });
 
   /* ---------- clock ---------- */
@@ -498,25 +349,22 @@
     line("║   ELITE H4CK3R TERMINAL v3.7.1   ║", "ok");
     line("║   >> TOP SECRET  //  DO NOT USE   ║", "warn");
     line("╚══════════════════════════════════╝", "ok");
-    await wait(200);
-    await progress("BOOTING KERNEL...", 900);
-    await progress("CONNECTING TO DARKNET...", 1100);
-    line("  connected via " + ip() + " [ghost mode]", "dim");
+    await wait(150);
+    await progress("BOOTING KERNEL...", 800);
+    await progress("CONNECTING TO DARKNET...", 1000);
+    line("  connected via " + ip() + " [stealth mode]", "dim");
     line("", null);
-    await type('  "I am a hacker. I am inside your phone now."', "bad");
-    speak("I am a hacker. I am inside your phone now.");
-    await wait(400);
-    line("", null);
-    line("> tap 👻 GHOST VOICE to hear me speak.", "warn");
-    line("> tap a target name + a hack to prank your cousins 😈", "warn");
+    line("> tap 🎙️ HACKER VOICE and the hacker will start talking out loud.", "warn");
+    line("> tap 🔴 NON-STOP MODE to make it keep talking on its own.", "warn");
+    line("> turn the phone volume UP! 🔊", "warn");
     line("", null);
   }
-  // start on first tap (needed so sound is allowed on phones)
+
+  // boot on first tap so audio + voice are allowed to play
   var started = false;
-  function boot() { if (started) return; started = true; audio(); intro(); }
+  function boot() { if (started) return; started = true; audio(); unlockSpeech(); intro(); }
   document.addEventListener("touchstart", boot, { once: true });
   document.addEventListener("click", boot, { once: true });
-  // if no tap after a moment, show intro silently anyway
   setTimeout(function () { if (!started) { started = true; intro(); } }, 1200);
 })();
 </script>
