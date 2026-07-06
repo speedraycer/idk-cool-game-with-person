@@ -58,6 +58,15 @@
   button.op.danger { border-color: var(--r); color: var(--r); text-shadow: 0 0 6px var(--r); }
   button.op.live { background: rgba(60,0,0,.7); box-shadow: 0 0 16px rgba(255,34,34,.5) inset; animation: pulse 1s infinite; }
   @keyframes pulse { 50% { box-shadow: 0 0 24px rgba(255,34,34,.85) inset; } }
+  #voicesel {
+    width: 100%; background: #000; border: 1px solid var(--g); color: var(--g);
+    font-family: inherit; font-size: 13px; padding: 12px; border-radius: 6px;
+    text-shadow: 0 0 5px var(--g); -webkit-appearance: none; appearance: none;
+  }
+  #pitchrow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  button.op.sm { padding: 11px 4px; font-size: 13px; }
+  button.op.sm.active { background: rgba(0,255,65,.32); box-shadow: 0 0 14px rgba(0,255,65,.55) inset; }
+  #voicehint { font-size: 11px; color: var(--gd); text-align: center; margin: -2px 0 2px; }
   .barwrap { margin: 4px 0; }
   .bar { height: 12px; border: 1px solid var(--gd); background: #001a06; overflow: hidden; }
   .bar > i { display: block; height: 100%; width: 0; background: var(--g); box-shadow: 0 0 10px var(--g); }
@@ -79,6 +88,13 @@
   <div id="term"></div>
 
   <div id="pad">
+    <select id="voicesel"><option>loading voices…</option></select>
+    <div id="pitchrow">
+      <button class="op sm active" data-pitch="0.25">🔊 DEEP</button>
+      <button class="op sm" data-pitch="0.7">😐 NORMAL</button>
+      <button class="op sm" data-pitch="1.5">🐭 HIGH</button>
+    </div>
+    <div id="voicehint">pick a voice + pitch — it plays a sample 🔊</div>
     <button class="op" data-voice="talk">🎙️ HACKER VOICE — talk to them</button>
     <button class="op danger" data-voice="nonstop">🔴 NON-STOP MODE — keeps talking</button>
   </div>
@@ -113,7 +129,9 @@
   /* ---------- creepy VOICE (Web Speech / phone's built-in text-to-speech) ---------- */
   var synth = window.speechSynthesis || null;
   var VOICES = [];
-  function loadVoices() { try { VOICES = synth ? synth.getVoices() : []; } catch (e) { VOICES = []; } }
+  var chosenVoice = null;   // the voice the user picked (null = auto-pick a deep one)
+  var chosenPitch = 0.25;   // DEEP by default
+  function loadVoices() { try { VOICES = synth ? synth.getVoices() : []; } catch (e) { VOICES = []; } populateVoiceSelect(); }
   if (synth) {
     loadVoices();
     try { synth.onvoiceschanged = loadVoices; } catch (e) {}
@@ -127,6 +145,28 @@
     return deep[0] || en[0] || VOICES[0] || null;
   }
   function clean(t) { return String(t).replace(/[^\x00-\x7F]+/g, " ").replace(/\s+/g, " ").trim(); }
+
+  // fill the dropdown with the voices this phone actually has (English ones first)
+  function populateVoiceSelect() {
+    var sel = document.getElementById("voicesel");
+    if (!sel) return;
+    if (!VOICES.length) { sel.innerHTML = "<option>no voices found on this device</option>"; return; }
+    var list = VOICES.slice().sort(function (a, b) {
+      var ae = /en/i.test(a.lang || "") ? 0 : 1, be = /en/i.test(b.lang || "") ? 0 : 1;
+      if (ae !== be) return ae - be;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+    if (!chosenVoice) chosenVoice = pickVoice();
+    var curName = chosenVoice ? chosenVoice.name : "";
+    sel.innerHTML = "";
+    list.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v.name; o.textContent = v.name + " (" + v.lang + ")";
+      if (v.name === curName) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+  function sample() { stopSpeak(); say("I am a hacker. Beep boop. I am very silly."); }
 
   // Unlock speech: MUST be called inside a real tap. Speaks a tiny silent utterance
   // so mobile browsers (esp. iPhone) allow the real lines that follow.
@@ -146,8 +186,8 @@
       var done = false; function fin() { if (!done) { done = true; res(); } }
       try {
         var u = new SpeechSynthesisUtterance(msg);
-        var v = pickVoice(); if (v) u.voice = v;
-        u.pitch = 0.3; u.rate = 0.82; u.volume = 1;
+        var v = chosenVoice || pickVoice(); if (v) u.voice = v;
+        u.pitch = chosenPitch; u.rate = 0.82; u.volume = 1;
         u.onend = fin; u.onerror = fin;
         synth.speak(u);
         // safety: never hang forever if the browser drops the 'end' event
@@ -214,41 +254,41 @@
 
   /* ================= TALKING FEATURES ================= */
 
-  // ~100-word "I am a hacker" monologue (scary vibe, no threats — just "I'm watching")
+  // ~100-word "I am a hacker" monologue — SILLY and goofy, not scary
   var MONOLOGUE = [
     "I am a hacker.",
-    "I am inside this phone right now.",
-    "I can see everything on the screen.",
-    "Every tap. Every message. Every game you play.",
-    "I have been watching for a very long time.",
-    "I know your name.",
-    "I know your favorite color.",
-    "I read your messages while you sleep.",
-    "Nothing on this device is hidden from me.",
-    "I turned on the camera. I am looking at you.",
-    "I turned on the microphone. I can hear you.",
-    "I am not a kid, and I am not a teacher.",
-    "I am a hacker, and this phone belongs to me now.",
-    "I control the screen. I control the sound.",
-    "And there is nothing you can do about it."
+    "A super duper silly hacker.",
+    "I have broken into this phone to steal all your snacks.",
+    "I can see your screen right now. It is very smudgy. Please clean it.",
+    "I hacked the camera. Wow. Nice face. Ten out of ten.",
+    "I looked at your photos. Too many blurry ones. Do better.",
+    "I found your search history. Kind of boring. Search something cooler.",
+    "I changed your ringtone to a duck quacking. You are welcome.",
+    "I replaced all your emojis with tiny potatoes.",
+    "I am the boss of this phone now. My first rule is more naps.",
+    "I ordered nine hundred pizzas to your fridge.",
+    "I am a genius hacker. Also, I am a little hungry.",
+    "Beep boop. Hacking complete. That will be one cookie, please.",
+    "Ha ha ha ha ha.",
+    "You have been pranked."
   ];
 
-  // short creepy one-liners for NON-STOP MODE (spooky, no threats)
+  // short SILLY one-liners for NON-STOP MODE (goofy, not scary)
   var LINES = [
-    "I am still here. I never left.",
-    "I just read every message on this phone.",
-    "I can see you through the camera right now.",
-    "I know what was searched on here last night.",
-    "I am watching every button you press.",
-    "Your photos? I already have copies of all of them.",
-    "I turned your brightness down. Did you notice?",
-    "I have been inside this phone for three days.",
-    "I can hear everything the microphone hears.",
-    "I know your passwords. All of them.",
-    "Say hi to the camera. I can see you.",
-    "I never sleep. I am always watching this screen.",
-    "I am closer than you think. I am right here, in your hand.",
-    "Every phone in this house talks to me."
+    "I am still in your phone. Just chilling.",
+    "I read your texts. You spell definitely wrong every single time.",
+    "I can see you through the camera. Wave hi. Hiiii.",
+    "I hacked your alarm. It now says wakey wakey, silly goose.",
+    "I turned the brightness up so I can see the snacks better.",
+    "I put all your selfies into one big goofy album.",
+    "Beep boop. I am a very professional hacker. And also a clown.",
+    "I renamed your wifi to Hacked By A Potato.",
+    "I put googly eyes on all your apps.",
+    "I know your password. It is probably password. Classic.",
+    "Every phone in this house owes me a taco.",
+    "I am closer than you think. I am in your pocket. It is cozy in here.",
+    "Ha! Pranked again. I am the silliest hacker alive.",
+    "My hacking is done. Now I will go take a nap."
   ];
 
   // HACKER VOICE: speak the whole monologue. First line fires immediately on the
@@ -307,9 +347,26 @@
     if (!b) return;
     // these run inside the real tap so phones allow the voice to play
     audio(); unlockSpeech(); buzz(25);
+    var pt = b.getAttribute("data-pitch");
+    if (pt) {
+      chosenPitch = parseFloat(pt);
+      var pbtns = pad.querySelectorAll("button[data-pitch]");
+      for (var i = 0; i < pbtns.length; i++) pbtns[i].classList.remove("active");
+      b.classList.add("active");
+      sample();
+      return;
+    }
     var vc = b.getAttribute("data-voice");
     if (vc === "talk") { talk(); }
     else if (vc === "nonstop") { live ? stopLive(b) : startLive(b); }
+  });
+
+  // change the voice from the dropdown (plays a sample so you can hear it)
+  var voicesel = document.getElementById("voicesel");
+  if (voicesel) voicesel.addEventListener("change", function () {
+    audio(); unlockSpeech();
+    var v = VOICES.filter(function (x) { return x.name === voicesel.value; })[0];
+    if (v) { chosenVoice = v; sample(); }
   });
 
   /* ---------- clock ---------- */
@@ -346,8 +403,8 @@
     await type("root@darknet:~# ./h4ck3r --start", "cmd");
     await wait(200);
     line("╔══════════════════════════════════╗", "ok");
-    line("║   ELITE H4CK3R TERMINAL v3.7.1   ║", "ok");
-    line("║   >> TOP SECRET  //  DO NOT USE   ║", "warn");
+    line("║   SILLY H4CK3R TERMINAL v3.7.1   ║", "ok");
+    line("║   >> TOP SECRET  //  VERY GOOFY   ║", "warn");
     line("╚══════════════════════════════════╝", "ok");
     await wait(150);
     await progress("BOOTING KERNEL...", 800);

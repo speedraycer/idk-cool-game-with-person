@@ -1,10 +1,10 @@
 # 😈 H4CK3R TERMINAL — Talking Prank App
 
 A fake "hacker" app for pranking little cousins (ages 9–12). Green Matrix rain,
-a scrolling hacker terminal, and — the main event — a creepy voice that **talks
-out loud** and says it has hacked into the phone. It's 100% fake: it doesn't
-touch any real device, network, or account. It just *looks and sounds* like a
-scary hacker.
+a scrolling hacker terminal, and — the main event — a goofy voice that **talks
+out loud** and pretends to hack the phone in the silliest way possible. It's
+100% fake: it doesn't touch any real device, network, or account. It just
+*looks and sounds* like a very silly hacker.
 
 It's a single file (`index.html`), so there's nothing to install and no app
 store needed. It runs in any phone browser and can be added to the home screen
@@ -14,16 +14,26 @@ so it looks and opens like a real app.
 
 Two big buttons:
 
-- **🎙️ HACKER VOICE** — the phone speaks a ~100-word spooky monologue in a slow,
-  deep voice: *"I am a hacker. I am inside this phone right now. I can see
-  everything on the screen… this phone belongs to me now."*
-- **🔴 NON-STOP MODE** — the hacker keeps talking on its own, saying a new creepy
-  line every few seconds (*"I can see you through the camera right now"*,
-  *"I never sleep. I am always watching this screen."*) until you tap it again
-  to stop.
+- **🎙️ HACKER VOICE** — the phone speaks a ~100-word goofy monologue: *"I am a
+  hacker. A super duper silly hacker. I have broken into this phone to steal all
+  your snacks… I ordered nine hundred pizzas to your fridge… You have been
+  pranked."*
+- **🔴 NON-STOP MODE** — the silly hacker keeps talking on its own, saying a new
+  goofy line every few seconds (*"I renamed your wifi to Hacked By A Potato"*,
+  *"I put googly eyes on all your apps"*) until you tap it again to stop.
 
-Everything it says is spooky-but-harmless — only *"I'm a hacker / I'm watching /
-I know things"* stuff. **No threats, nothing mean.**
+Everything it says is silly and friendly — snacks, pizzas, and potatoes.
+**Nothing scary, no threats, nothing mean.**
+
+### 🎚️ Change the voice
+At the top of the buttons you can pick how the hacker sounds:
+
+- **Voice dropdown** — lists every voice your phone has. Pick one and it plays a
+  sample right away. (Different phones have different voices — try a few!)
+- **🔊 DEEP / 😐 NORMAL / 🐭 HIGH** — change the pitch from a deep scary voice to a
+  normal one to a silly high one. Tapping one plays a sample too.
+
+Your choice is used for both HACKER VOICE and NON-STOP MODE.
 
 ## ⚠️ IMPORTANT — how to make the voice actually talk
 
